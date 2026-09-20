@@ -46,7 +46,6 @@ router.post("/", async (req, res) => {
       });
     }
 
-    // 1. Save the enquiry to MongoDB first — this is the critical part.
     const contact = await Contact.create({
       name,
       email,
@@ -55,22 +54,29 @@ router.post("/", async (req, res) => {
       message,
     });
 
-    // 2. Respond to the user immediately once it's saved, so a slow or
-    //    failing email server never makes the form feel broken.
     res.status(200).json({
       success: true,
       message: "Message sent successfully.",
       id: contact._id,
     });
 
-    // 3. Try to send the notification email in the background. If it fails,
-    //    it's logged here (check your terminal / Render logs) but does NOT
-    //    affect the user's experience.
     try {
-      const info = await transporter.sendMail(
-        buildMail({ name, email, phone, service, message }),
+      const mailOptions = buildMail({ name, email, phone, service, message });
+      console.log(
+        "➡️  Attempting to send mail. To:",
+        mailOptions.to,
+        " From:",
+        mailOptions.from,
       );
-      console.log("📧 Notification email sent:", info.messageId);
+
+      const info = await transporter.sendMail(mailOptions);
+
+      // Full diagnostic info — this tells us exactly what Gmail's server said
+      console.log("📧 SMTP response:", info.response);
+      console.log("📧 Accepted addresses:", info.accepted);
+      console.log("📧 Rejected addresses:", info.rejected);
+      console.log("📧 Envelope:", info.envelope);
+      console.log("📧 Message-Id:", info.messageId);
     } catch (mailErr) {
       console.error("❌ Failed to send notification email:", mailErr);
     }
